@@ -21,42 +21,56 @@ end
 
 class BelongsToOptions < AssocOptions
   def initialize(name, options = {})
-    self.foreign_key = options[:foreign_key] || "#{name}_id".downcase.to_sym
-    self.primary_key = options[:primary_key] || :id
-    self.class_name = options[:class_name] || "#{name}".camelcase
+    defaults = {
+      class_name: "#{name}".camelcase,
+      foreign_key: "#{name}_id".downcase.to_sym,
+      primary_key: :id
+    }
+
+    options = defaults.merge(options)
+
+    self.foreign_key = options[:foreign_key]
+    self.primary_key = options[:primary_key]
+    self.class_name = options[:class_name]
   end
 end
 
 class HasManyOptions < AssocOptions
   def initialize(name, self_class_name, options = {})
-    self.foreign_key = options[:foreign_key] || "#{self_class_name}_id".downcase.to_sym
+    defaults = {
+      class_name: "#{name}".singularize.camelcase,
+      foreign_key: "#{self_class_name}_id".downcase.to_sym,
+      primary_key: :id
+    }
 
-    self.class_name = options[:class_name] || "#{name}".singularize.camelcase
+    options = defaults.merge(options)
 
-    self.primary_key = options[:primary_key] || :id
+    self.foreign_key = options[:foreign_key]
+    self.class_name = options[:class_name]
+    self.primary_key = options[:primary_key]
   end
 end
 
 module Associatable
   # Phase IIIb
   def belongs_to(name, opts = {})
-    options = BelongsToOptions.new(name, opts)
-    assoc_options[name.to_sym] = options
+    assoc_options[name] = BelongsToOptions.new(name, opts)
+    options = assoc_options[name]
 
     define_method "#{name}" do
       target_id = self.send("#{options.foreign_key}")
-      params = { "#{options.primary_key}".to_sym => target_id }
+      params = { "#{options.primary_key}" => target_id }
       options.model_class.where(params).first
     end
   end
 
-  def has_many(name, options = {})
-    options = HasManyOptions.new(name, self.name, options)
-    assoc_options[name.to_sym] = options
+  def has_many(name, opts = {})
+    assoc_options[name] = HasManyOptions.new(name, self.name, opts)
+    options = assoc_options[name]
 
     define_method "#{name}" do
       target_id = self.send("#{options.primary_key}")
-      params = { "#{options.foreign_key}".to_sym => target_id }
+      params = { "#{options.foreign_key}" => target_id }
       options.model_class.where(params)
     end
   end
